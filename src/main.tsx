@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 
-import * as TanStackQueryProvider from './src/integrations/tanstack-query/root-provider.tsx'
+import * as TanStackQueryProvider from './integrations/tanstack-query/root-provider.tsx'
 
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
@@ -13,8 +13,14 @@ import reportWebVitals from './reportWebVitals.ts'
 // Create a new router instance
 
 const TanStackQueryProviderContext = TanStackQueryProvider.getContext()
+// Base path for GitHub Pages (must match Vite base, e.g. /inf252 when deployed)
+const baseUrl = import.meta.env.BASE_URL
+const basepath =
+  baseUrl && baseUrl !== '/' ? baseUrl.replace(/\/$/, '') : undefined
+
 const router = createRouter({
   routeTree,
+  basepath,
   context: {
     ...TanStackQueryProviderContext,
   },

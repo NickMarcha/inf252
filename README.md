@@ -17,6 +17,38 @@ To build this application for production:
 npm run build
 ```
 
+## Publishing to GitHub Pages
+
+The app is configured to be published on GitHub Pages (e.g. `https://<username>.github.io/inf252/`).
+
+### 1. Deploy from your machine
+
+Install dependencies, then build and push the site to the `gh-pages` branch:
+
+```bash
+npm install
+npm run deploy
+```
+
+If your repository name is not `inf252`, change the base path before deploying:
+
+- In `package.json`, update the `build:gh-pages` script: replace `/inf252/` with `/<your-repo-name>/`.
+
+### 2. Configure the repository on GitHub
+
+1. Open your repo on GitHub and go to **Settings**.
+2. In the left sidebar, click **Pages** (under "Code and automation").
+3. Under **Build and deployment**:
+   - **Source**: choose **Deploy from a branch**.
+   - **Branch**: select `gh-pages`, folder **/ (root)**.
+   - Click **Save**.
+4. Wait a minute or two. Your site will be available at:
+   - `https://<username>.github.io/inf252/` (replace `<username>` and `inf252` with your GitHub username and repo name).
+</think>
+Adding a 404 fallback for client-side routing on GitHub Pages by checking for an existing `404.html` or redirect:
+<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
+LS
+
 ## Testing
 
 This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:

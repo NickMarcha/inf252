@@ -8,7 +8,9 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import { fileURLToPath, URL } from 'node:url'
 
 // https://vitejs.dev/config/
+// For GitHub Pages: build with --base /REPO_NAME/ (e.g. npm run build:gh-pages)
 export default defineConfig({
+  base: '/',
   plugins: [
     devtools(),
     tanstackRouter({
