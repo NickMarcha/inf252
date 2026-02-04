@@ -6,6 +6,17 @@ This repository contains my work for the INF252 Visualization course at UiB.
 
 ---
 
+## Get started (run locally)
+
+- **Node:** Node 20.x (LTS) or later. This project was developed with **Node 25.4.0**. If you use [nvm](https://github.com/nvm-sh/nvm) or [fnm](https://github.com/Schniz/fnm), run `nvm use` or `fnm use` in the project root to switch to the version in [`.nvmrc`](.nvmrc).
+- **Install:** `npm install`
+- **Dev server:** `npm run dev` — app runs at [http://localhost:3000](http://localhost:3000)
+- **Build:** `npm run build`
+
+The deceptive-viz assignment (Programming Exercise 02) is at **/assignments/deceptive-viz** (tabs: Assignment Brief, Data Exploration, Visualization).
+
+---
+
 Welcome to INF252 Visualization!
 
 Visualization is the use of interactive graphical representations to support insights and shape conversations around data, which often are large and complex. The course covers the central aspects of the field of visualization, including visual perception, information visualization, volume and flow visualization, visual analytics/visual data science, and visual communication.
