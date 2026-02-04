@@ -22,7 +22,7 @@ For additional information and course learning objectives, please refer to the [
 
 | Assignment | Description |
 |------------|-------------|
-| [Programming Exercise 02: Deceptive Visualization](Assignments/ProgrammingExercise02_Deceptive_Viz.md) | Honest vs. misleading visualizations from the same dataset. |
+| [Programming Exercise 02: Deceptive Visualization](Assignments/ProgrammingExercise02_Deceptive_Viz.md) | Honest vs. misleading visualizations from the same dataset. [→ Open in app](https://nickmarcha.github.io/inf252/assignments/deceptive-viz) |
 
 ---
 
