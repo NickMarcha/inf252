@@ -9,8 +9,16 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { csvParse } from 'd3'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import Markdown from 'react-markdown'
+import {
+  computeLineSeries,
+  computeScatterPoints,
+  computeScatterPointsByGenre,
+  ExplorationLineChart,
+  ExplorationScatter,
+  genreDisplayName,
+} from './-exploration-charts'
 
 /** Turn a genre label into a safe column name: e.g. "Sci-Fi" -> "isSciFi" */
 function genreToColumnName(genre: string): string {
@@ -397,6 +405,51 @@ function computeCorrelationMatrix(
   return { matrix: corrMatrix, columns: colList }
 }
 
+function CollapsibleSection({
+  title,
+  children,
+  defaultOpen = true,
+  sectionClassName = '',
+}: {
+  title: string
+  children: ReactNode
+  defaultOpen?: boolean
+  sectionClassName?: string
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <section
+      className={`rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50 ${sectionClassName}`.trim()}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between gap-2 px-5 py-3 text-left hover:bg-gray-100/80 dark:hover:bg-gray-700/50 rounded-t-lg transition-colors"
+        aria-expanded={open}
+      >
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          {title}
+        </h2>
+        <span
+          className="shrink-0 text-gray-500 dark:text-gray-400 transition-transform duration-300 ease-out"
+          style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          aria-hidden
+        >
+          ▼
+        </span>
+      </button>
+      <div
+        className="grid transition-[grid-template-rows] duration-300 ease-out"
+        style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="px-5 pb-5 pt-0">{children}</div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function DeceptiveVizPage() {
   const { rows, columns, assignmentMarkdown } = Route.useLoaderData() as {
     rows: Record<string, string>[]
@@ -404,6 +457,33 @@ function DeceptiveVizPage() {
     assignmentMarkdown: string
   }
   const [activeTab, setActiveTab] = useState<'brief' | 'exploration' | 'visualization'>('brief')
+
+  const genreColumns = useMemo(() => columns.filter((c) => c.startsWith('is') && c.length > 2), [columns])
+  const [lineMetric, setLineMetric] = useState<'imdb' | 'meta'>('imdb')
+  const [lineVisible, setLineVisible] = useState<Set<string>>(() => new Set(['All']))
+  const [lineDomain, setLineDomain] = useState<{ xMin: number; xMax: number; yMin: number; yMax: number } | null>(null)
+  const [scatterUseTimeline, setScatterUseTimeline] = useState(false)
+  const scatterYears = useMemo(() => {
+    const ys = rows.map((r) => Number(r.Released_Year)).filter((y) => !Number.isNaN(y))
+    return [...new Set(ys)].sort((a, b) => a - b)
+  }, [rows])
+  const [scatterSelectedYear, setScatterSelectedYear] = useState(2020)
+
+  const lineSeries = useMemo(
+    () => computeLineSeries(rows, genreColumns, lineMetric),
+    [rows, genreColumns, lineMetric]
+  )
+  const scatterPoints = useMemo(() => computeScatterPoints(rows), [rows])
+  const scatterPointsByGenre = useMemo(() => computeScatterPointsByGenre(rows), [rows])
+
+  const toggleLineSeries = (key: string) => {
+    setLineVisible((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   const columnStats = useMemo(() => computeColumnStats(rows, columns), [rows, columns])
   const corrResult = useMemo(() => computeCorrelationMatrix(rows, columns), [rows, columns])
@@ -492,10 +572,7 @@ function DeceptiveVizPage() {
 
       {activeTab === 'exploration' && (
         <>
-          <section className="mb-8 rounded-lg border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800/50">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-              Data overview — all columns
-            </h2>
+          <CollapsibleSection title="Data overview — all columns" sectionClassName="mb-8">
             <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
               <strong>Rows:</strong> {rows.length.toLocaleString()} ·{' '}
               <strong>Columns:</strong> {columns.length}
@@ -593,12 +670,153 @@ function DeceptiveVizPage() {
                 </div>
               ))}
             </div>
-          </section>
+          </CollapsibleSection>
 
-          <section className="rounded-lg border border-gray-200 dark:border-gray-700">
-            <h2 className="border-b border-gray-200 bg-gray-100 px-4 py-3 text-lg font-semibold dark:border-gray-700 dark:bg-gray-800 dark:text-white">
-              Data table — filter by column
-            </h2>
+          <CollapsibleSection title="Which years have better movies?" sectionClassName="mb-8">
+            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+              Average movie rating by release year. Toggle metric and genres; optionally set axis ranges.
+            </p>
+            <div className="mb-4 flex flex-wrap items-center gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <span className="text-gray-700 dark:text-gray-300">Metric:</span>
+                <select
+                  value={lineMetric}
+                  onChange={(e) => setLineMetric(e.target.value as 'imdb' | 'meta')}
+                  className="rounded border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="imdb">IMDB Rating</option>
+                  <option value="meta">Meta score</option>
+                </select>
+              </label>
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-gray-700 dark:text-gray-300">Show:</span>
+                {lineSeries.map((s) => (
+                  <label key={s.key} className="flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={lineVisible.has(s.key)}
+                      onChange={() => toggleLineSeries(s.key)}
+                      className="rounded"
+                    />
+                    <span className="text-gray-800 dark:text-gray-200">{genreDisplayName(s.key)}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
+              <span className="text-gray-700 dark:text-gray-300">Axis range (optional):</span>
+              <input
+                type="number"
+                placeholder="Year min"
+                className="w-24 rounded border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                value={lineDomain?.xMin ?? ''}
+                onChange={(e) => {
+                  const v = e.target.value === '' ? null : Number(e.target.value)
+                  if (v === null || Number.isNaN(v)) return
+                  setLineDomain((d) => ({ ...(d ?? { xMin: 1920, xMax: 2030, yMin: 0, yMax: 10 }), xMin: v }))
+                }}
+              />
+              <input
+                type="number"
+                placeholder="Year max"
+                className="w-24 rounded border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                value={lineDomain?.xMax ?? ''}
+                onChange={(e) => {
+                  const v = e.target.value === '' ? null : Number(e.target.value)
+                  if (v === null || Number.isNaN(v)) return
+                  setLineDomain((d) => ({ ...(d ?? { xMin: 1920, xMax: 2030, yMin: 0, yMax: 10 }), xMax: v }))
+                }}
+              />
+              <input
+                type="number"
+                step={0.5}
+                placeholder="Y min"
+                className="w-20 rounded border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                value={lineDomain?.yMin ?? ''}
+                onChange={(e) => {
+                  const v = e.target.value === '' ? null : Number(e.target.value)
+                  if (v === null || Number.isNaN(v)) return
+                  setLineDomain((d) => ({ ...(d ?? { xMin: 1920, xMax: 2030, yMin: 0, yMax: 10 }), yMin: v }))
+                }}
+              />
+              <input
+                type="number"
+                step={0.5}
+                placeholder="Y max"
+                className="w-20 rounded border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                value={lineDomain?.yMax ?? ''}
+                onChange={(e) => {
+                  const v = e.target.value === '' ? null : Number(e.target.value)
+                  if (v === null || Number.isNaN(v)) return
+                  setLineDomain((d) => ({ ...(d ?? { xMin: 1920, xMax: 2030, yMin: 0, yMax: 10 }), yMax: v }))
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setLineDomain(null)}
+                className="rounded border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              >
+                Reset axes
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <ExplorationLineChart
+                series={lineSeries}
+                visibleKeys={lineVisible}
+                metric={lineMetric}
+                domain={lineDomain}
+              />
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection title="How does runtime affect the movie rating?" sectionClassName="mb-8">
+            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+              Scatter: runtime vs IMDB rating. <strong>All years</strong>: one point per genre (average across all years). <strong>By year</strong>: one point per movie; axis ranges stay fixed across years.
+            </p>
+            <div className="mb-4 flex flex-wrap items-center gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={!scatterUseTimeline}
+                  onChange={() => setScatterUseTimeline(false)}
+                  className="rounded"
+                />
+                <span className="text-gray-800 dark:text-gray-200">All years</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={scatterUseTimeline}
+                  onChange={() => setScatterUseTimeline(true)}
+                  className="rounded"
+                />
+                <span className="text-gray-800 dark:text-gray-200">By year (timeline)</span>
+              </label>
+              {scatterUseTimeline && scatterYears.length > 0 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-700 dark:text-gray-300">Year:</span>
+                  <input
+                    type="range"
+                    min={scatterYears[0]}
+                    max={scatterYears[scatterYears.length - 1]}
+                    value={Math.max(scatterYears[0]!, Math.min(scatterYears[scatterYears.length - 1]!, scatterSelectedYear))}
+                    onChange={(e) => setScatterSelectedYear(Number(e.target.value))}
+                    className="w-40"
+                  />
+                  <span className="font-medium text-gray-800 dark:text-gray-200">{scatterSelectedYear}</span>
+                </div>
+              )}
+            </div>
+            <div className="overflow-x-auto">
+              <ExplorationScatter
+                points={scatterPoints}
+                pointsByGenre={scatterPointsByGenre}
+                selectedYear={scatterUseTimeline ? scatterSelectedYear : null}
+              />
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Data table — filter by column">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
@@ -686,12 +904,9 @@ function DeceptiveVizPage() {
                 </select>
               </div>
             </div>
-          </section>
+          </CollapsibleSection>
 
-          <section className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800/50">
-            <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-              Correlation matrix
-            </h2>
+          <CollapsibleSection title="Correlation matrix" sectionClassName="mt-8">
             <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
               Correlation between numeric variables (including genre flags as 0/1). Normalized to [-1, 1] so colors are comparable. Red = negative, white = 0, blue = positive.
             </p>
@@ -738,7 +953,7 @@ function DeceptiveVizPage() {
                 </tbody>
               </table>
             </div>
-          </section>
+          </CollapsibleSection>
         </>
       )}
 
