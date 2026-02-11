@@ -1,4 +1,5 @@
 import * as d3 from 'd3'
+import { chord, ribbon } from 'd3-chord'
 import { useEffect, useMemo, useRef } from 'react'
 
 function parseRuntime(s: string): number | null {
@@ -1372,6 +1373,358 @@ export function DisagreementByGenreChart({
         </p>
       )}
       <svg ref={svgRef} width={CHART_WIDTH} height={height} className="overflow-visible" />
+    </div>
+  )
+}
+
+/** Star (actor) co-occurrence: which actors appear together in movies. */
+export interface StarChordData {
+  matrix: number[][]
+  actors: string[]
+  connectionCountMin: number
+  connectionCountMax: number
+  /** Map "ActorA|ActorB" -> Series_Title[] for movies with both actors */
+  connectionMovies: Map<string, string[]>
+  /** All movie IDs in the filtered connection set (for "all movies" view) */
+  allFilteredMovieIds: string[]
+}
+
+export function computeStarCooccurrenceMatrix(
+  rows: Record<string, string>[],
+  options: { yearMin: number; yearMax: number; minConnectionSize: number }
+): StarChordData {
+  const { yearMin, yearMax, minConnectionSize } = options
+
+  const filtered = rows.filter((r) => {
+    const y = Number(r.Released_Year)
+    return !Number.isNaN(y) && y >= yearMin && y <= yearMax
+  })
+
+  const cooccurrence = new Map<string, { count: number; movies: string[] }>()
+
+  for (const row of filtered) {
+    const stars = [row.Star1, row.Star2, row.Star3, row.Star4]
+      .map((s) => s?.trim())
+      .filter((s): s is string => Boolean(s))
+    const title = row.Series_Title ?? ''
+    if (!title) continue
+    for (let i = 0; i < stars.length; i++) {
+      const a = stars[i]!
+      for (let j = i + 1; j < stars.length; j++) {
+        const b = stars[j]!
+        if (a === b) continue
+        const key = [a, b].sort().join('|')
+        const entry = cooccurrence.get(key)
+        if (!entry) {
+          cooccurrence.set(key, { count: 1, movies: [title] })
+        } else {
+          entry.count += 1
+          if (!entry.movies.includes(title)) entry.movies.push(title)
+        }
+      }
+    }
+  }
+
+  const counts = [...cooccurrence.values()].map((e) => e.count)
+  const connectionCountMin = counts.length > 0 ? Math.min(...counts) : 1
+  const connectionCountMax = counts.length > 0 ? Math.max(...counts) : 1
+
+  const cooccurrenceFiltered = new Map<string, { count: number; movies: string[] }>()
+  for (const [key, entry] of cooccurrence) {
+    if (entry.count >= minConnectionSize) {
+      cooccurrenceFiltered.set(key, entry)
+    }
+  }
+
+  const connectionSize = new Map<string, number>()
+  for (const [key, entry] of cooccurrenceFiltered) {
+    const [a, b] = key.split('|')
+    connectionSize.set(a!, (connectionSize.get(a!) ?? 0) + entry.count)
+    connectionSize.set(b!, (connectionSize.get(b!) ?? 0) + entry.count)
+  }
+
+  const eligible = [...connectionSize.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([a]) => a)
+
+  if (eligible.length < 2) {
+    return {
+      matrix: [],
+      actors: [],
+      connectionCountMin,
+      connectionCountMax,
+      connectionMovies: new Map(),
+      allFilteredMovieIds: [],
+    }
+  }
+
+  const actorToIndex = new Map(eligible.map((a, i) => [a, i]))
+  const n = eligible.length
+  const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0))
+
+  const connectionMovies = new Map<string, string[]>()
+  const allFilteredMovieIds = new Set<string>()
+
+  for (const [key, entry] of cooccurrenceFiltered) {
+    const [a, b] = key.split('|')
+    const i = actorToIndex.get(a!)
+    const j = actorToIndex.get(b!)
+    if (i == null || j == null) continue
+    matrix[i]![j]! = entry.count
+    matrix[j]![i]! = entry.count
+    connectionMovies.set(key, entry.movies)
+    for (const id of entry.movies) allFilteredMovieIds.add(id)
+  }
+
+  return {
+    matrix,
+    actors: eligible,
+    connectionCountMin,
+    connectionCountMax,
+    connectionMovies,
+    allFilteredMovieIds: [...allFilteredMovieIds],
+  }
+}
+
+export function getConnectionCountRange(
+  rows: Record<string, string>[],
+  yearMin: number,
+  yearMax: number
+): { min: number; max: number } {
+  const filtered = rows.filter((r) => {
+    const y = Number(r.Released_Year)
+    return !Number.isNaN(y) && y >= yearMin && y <= yearMax
+  })
+  const cooccurrence = new Map<string, number>()
+  for (const row of filtered) {
+    const stars = [row.Star1, row.Star2, row.Star3, row.Star4]
+      .map((s) => s?.trim())
+      .filter((s): s is string => Boolean(s))
+    for (let i = 0; i < stars.length; i++) {
+      const a = stars[i]!
+      for (let j = i + 1; j < stars.length; j++) {
+        const b = stars[j]!
+        if (a === b) continue
+        const key = [a, b].sort().join('|')
+        cooccurrence.set(key, (cooccurrence.get(key) ?? 0) + 1)
+      }
+    }
+  }
+  const counts = [...cooccurrence.values()]
+  const min = counts.length > 0 ? Math.max(2, Math.min(...counts)) : 2
+  const max = counts.length > 0 ? Math.max(...counts) : 2
+  return { min, max }
+}
+
+/** Filter chord data to only include a subset of actors, keeping full dataset connection counts. */
+export function filterChordDataByActors(data: StarChordData, actorSet: Set<string>): StarChordData {
+  const actors = data.actors.filter((a) => actorSet.has(a))
+  if (actors.length < 2) {
+    return { matrix: [], actors: [], connectionCountMin: 1, connectionCountMax: 1, connectionMovies: new Map(), allFilteredMovieIds: [] }
+  }
+  const origIndex = new Map(data.actors.map((a, i) => [a, i]))
+  const newIndex = new Map(actors.map((a, i) => [a, i]))
+  const n = actors.length
+  const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0))
+  const connectionMovies = new Map<string, string[]>()
+  const allMovieIds = new Set<string>()
+  for (let i = 0; i < actors.length; i++) {
+    for (let j = i + 1; j < actors.length; j++) {
+      const a = actors[i]!
+      const b = actors[j]!
+      const key = [a, b].sort().join('|')
+      const origA = origIndex.get(a)!
+      const origB = origIndex.get(b)!
+      const count = data.matrix[origA]?.[origB] ?? 0
+      if (count > 0) {
+        matrix[newIndex.get(a)!]![newIndex.get(b)!]! = count
+        matrix[newIndex.get(b)!]![newIndex.get(a)!]! = count
+        const movies = data.connectionMovies.get(key) ?? []
+        connectionMovies.set(key, movies)
+        for (const id of movies) allMovieIds.add(id)
+      }
+    }
+  }
+  const counts = matrix.flat().filter((v) => v > 0)
+  const min = counts.length > 0 ? Math.min(...counts) : 1
+  const max = counts.length > 0 ? Math.max(...counts) : 1
+  return { matrix, actors, connectionCountMin: min, connectionCountMax: max, connectionMovies, allFilteredMovieIds: [...allMovieIds] }
+}
+
+const CHORD_SIZE = 600
+const CHORD_LABEL_PADDING = 80
+
+export interface StarChordChartProps {
+  data: StarChordData
+  onConnectionClick?: (actorA: string, actorB: string) => void
+  selectedConnection?: { actorA: string; actorB: string } | null
+}
+
+export function StarChordChart({ data, onConnectionClick, selectedConnection }: StarChordChartProps) {
+  const svgRef = useRef<SVGSVGElement>(null)
+
+  useEffect(() => {
+    if (!svgRef.current || data.actors.length < 2) return
+
+    const radius = CHORD_SIZE / 2 - 55
+
+    const chordLayout = chord()
+      .padAngle(0.03)
+      .sortGroups(d3.descending)
+      .sortChords(d3.descending)
+
+    const ribbonGenerator = ribbon().radius(radius)
+
+    const colorScale = d3.scaleOrdinal<string, string>()
+      .domain(data.actors)
+      .range(d3.schemeTableau10)
+
+    const arc = d3.arc<{ startAngle: number; endAngle: number; value: number; index: number }>()
+      .innerRadius(radius - 12)
+      .outerRadius(radius)
+
+    const chordResult = chordLayout(data.matrix)
+    const chordList = Array.isArray(chordResult) ? chordResult : []
+    const chordGroups = 'groups' in chordResult ? (chordResult as { groups: Array<{ index: number; startAngle: number; endAngle: number; value: number }> }).groups : []
+
+    d3.select(svgRef.current).selectAll('*').remove()
+
+    const size = CHORD_SIZE + CHORD_LABEL_PADDING * 2
+    const svg = d3
+      .select(svgRef.current)
+      .attr('viewBox', [-CHORD_LABEL_PADDING, -CHORD_LABEL_PADDING, size, size])
+      .attr('style', 'max-width: 100%; height: auto; font: 11px sans-serif;')
+      .style('overflow', 'visible')
+
+    const g = svg
+      .append('g')
+      .attr('transform', `translate(${CHORD_SIZE / 2},${CHORD_SIZE / 2})`)
+
+    const strokeColor = (actor: string) => {
+      const c = d3.color(colorScale(actor))
+      return c ? c.darker(1).toString() : '#333'
+    }
+
+    const blendedColor = (d: { source: { index: number }; target: { index: number } }) => {
+      const c1 = colorScale(data.actors[d.source.index] ?? '')
+      const c2 = colorScale(data.actors[d.target.index] ?? '')
+      return d3.interpolateRgb(c1, c2)(0.5)
+    }
+
+    type ChordDatum = { source: { index: number }; target: { index: number } }
+    const getConnectionKey = (d: ChordDatum) => {
+      const a = data.actors[d.source.index] ?? ''
+      const b = data.actors[d.target.index] ?? ''
+      return [a, b].sort().join('|')
+    }
+
+    const isSelected = (d: ChordDatum) => {
+      if (!selectedConnection) return false
+      const key = getConnectionKey(d)
+      return key === [selectedConnection.actorA, selectedConnection.actorB].sort().join('|')
+    }
+
+    g.append('g')
+      .selectAll('path')
+      .data(chordList)
+      .join('path')
+      .attr('fill', blendedColor)
+      .attr('fill-opacity', (d: ChordDatum) => (isSelected(d) ? 1 : 0.67))
+      .attr('stroke', (d: ChordDatum) => (isSelected(d) ? '#333' : 'rgba(0,0,0,0.15)'))
+      .attr('stroke-width', (d: ChordDatum) => (isSelected(d) ? 2 : 0.5))
+      .attr('d', ribbonGenerator as (d: unknown) => string)
+      .style('cursor', 'pointer')
+      .on('click', function (_event, d: { source: { index: number }; target: { index: number } }) {
+        const a = data.actors[d.source.index] ?? ''
+        const b = data.actors[d.target.index] ?? ''
+        onConnectionClick?.(a, b)
+      })
+      .on('pointerenter', function (_event, d: { source: { index: number; value: number }; target: { index: number; value: number } }) {
+        d3.select(this).attr('fill-opacity', 1).raise()
+        const a = data.actors[d.source.index] ?? ''
+        const b = data.actors[d.target.index] ?? ''
+        const v = Math.max(d.source.value, d.target.value)
+        const tooltip = svg.append('g').attr('pointer-events', 'none').attr('class', 'chord-tooltip')
+        tooltip
+          .append('text')
+          .attr('x', CHORD_SIZE / 2)
+          .attr('y', CHORD_SIZE - 10 + CHORD_LABEL_PADDING)
+          .attr('text-anchor', 'middle')
+          .attr('fill', 'currentColor')
+          .attr('font-size', 12)
+          .attr('font-weight', 'bold')
+          .text(`${a} ↔ ${b}: ${v} movie${v !== 1 ? 's' : ''} together`)
+      })
+      .on('pointerleave', function (_event, d: { source: { index: number }; target: { index: number } }) {
+        d3.select(this).attr('fill-opacity', isSelected(d) ? 1 : 0.67)
+        svg.selectAll('.chord-tooltip').remove()
+      })
+      .on('contextmenu', function (event, d: { source: { index: number; value: number }; target: { index: number; value: number } }) {
+        event.preventDefault()
+        const a = data.actors[d.source.index] ?? ''
+        const b = data.actors[d.target.index] ?? ''
+        const v = Math.max(d.source.value, d.target.value)
+        const text = `${a}\t${b}\t${v}`
+        void navigator.clipboard.writeText(text).then(() => {
+          const tooltip = svg.append('g').attr('pointer-events', 'none').attr('class', 'chord-tooltip chord-copied')
+          tooltip
+            .append('text')
+            .attr('x', CHORD_SIZE / 2)
+            .attr('y', CHORD_SIZE - 10 + CHORD_LABEL_PADDING)
+            .attr('text-anchor', 'middle')
+            .attr('fill', 'currentColor')
+            .attr('font-size', 12)
+            .attr('font-weight', 'bold')
+            .text('Copied to clipboard')
+          setTimeout(() => svg.selectAll('.chord-copied').remove(), 1200)
+        })
+      })
+
+    g.append('g')
+      .selectAll('path')
+      .data(chordGroups)
+      .join('path')
+      .attr('fill', (d) => colorScale(data.actors[d.index] ?? ''))
+      .attr('stroke', (d) => strokeColor(data.actors[d.index] ?? ''))
+      .attr('stroke-width', 2)
+      .attr('d', arc as (d: unknown) => string)
+
+    const labelArc = d3.arc<{ startAngle: number; endAngle: number }>()
+      .innerRadius(radius + 55)
+      .outerRadius(radius + 55)
+
+    g.append('g')
+      .selectAll('text')
+      .data(chordGroups)
+      .join('text')
+      .attr('transform', (d) => {
+        const [x, y] = labelArc.centroid(d)
+        const angle = (d.startAngle + d.endAngle) / 2
+        const rotate = angle < Math.PI ? angle * (180 / Math.PI) - 90 : angle * (180 / Math.PI) + 90
+        return `translate(${x},${y}) rotate(${rotate})`
+      })
+      .attr('text-anchor', 'middle')
+      .attr('font-size', 10)
+      .attr('fill', 'currentColor')
+      .style('pointer-events', 'none')
+      .text((d) => data.actors[d.index] ?? '')
+
+    return () => {
+      svg.selectAll('.chord-tooltip').remove()
+    }
+  }, [data, onConnectionClick, selectedConnection])
+
+  if (data.actors.length < 2) {
+    return (
+      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-6 py-8 text-center text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-400">
+        Not enough connections with the current filters. Try lowering min movies per connection or widening the year range.
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <svg ref={svgRef} width={CHORD_SIZE + CHORD_LABEL_PADDING * 2} height={CHORD_SIZE + CHORD_LABEL_PADDING * 2} className="mx-auto overflow-visible" />
     </div>
   )
 }

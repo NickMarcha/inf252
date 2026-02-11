@@ -1,18 +1,28 @@
 import { createFileRoute, Link, Outlet, useLocation } from '@tanstack/react-router'
+import { csvParse } from 'd3'
 
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/nickmarcha/inf252/main'
 const ASSIGNMENT_MD_URL = `${GITHUB_RAW_BASE}/Assignments/ProgrammingExercise03_Exploratory_Vis.md`
 
 export const Route = createFileRoute('/assignments/exploratory-vis')({
   loader: async () => {
-    const mdRes = await fetch(ASSIGNMENT_MD_URL)
+    const base = import.meta.env.BASE_URL
+    const [csvRes, mdRes] = await Promise.all([
+      fetch(`${base}data/imdb_top_1000.csv`),
+      fetch(ASSIGNMENT_MD_URL),
+    ])
+    if (!csvRes.ok) throw new Error('Failed to load CSV')
+    const text = await csvRes.text()
+    const parsed = csvParse(text)
+    const rows = parsed as unknown as Record<string, string>[]
     const assignmentMarkdown = mdRes.ok ? await mdRes.text() : '*Assignment brief could not be loaded.*'
-    return { assignmentMarkdown }
+    return { rows, assignmentMarkdown }
   },
   component: ExploratoryVisLayout,
 })
 
 export type ExploratoryVisLoaderData = {
+  rows: Record<string, string>[]
   assignmentMarkdown: string
 }
 
