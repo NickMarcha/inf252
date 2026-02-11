@@ -13,7 +13,9 @@ This repository contains my work for the INF252 Visualization course at UiB.
 - **Dev server:** `npm run dev` — app runs at [http://localhost:3000](http://localhost:3000)
 - **Build:** `npm run build`
 
-The deceptive-viz assignment (Programming Exercise 02) is at **/assignments/deceptive-viz** (tabs: Assignment Brief, Data Exploration, Visualization).
+The assignments are available at:
+- **Ex 02 Deceptive Viz:** [/assignments/deceptive-viz](https://nickmarcha.github.io/inf252/assignments/deceptive-viz) (tabs: Assignment Brief, Data Exploration, Visualization)
+- **Ex 03 Exploratory Viz:** [/assignments/exploratory-vis](https://nickmarcha.github.io/inf252/assignments/exploratory-vis) (tabs: Assignment Brief, Data Exploration, Visualization)
 
 ---
 
@@ -34,6 +36,7 @@ For additional information and course learning objectives, please refer to the [
 | Assignment | Description |
 |------------|-------------|
 | [Programming Exercise 02: Deceptive Visualization](Assignments/ProgrammingExercise02_Deceptive_Viz.md) | Honest vs. misleading visualizations from the same dataset. [→ Open in app](https://nickmarcha.github.io/inf252/assignments/deceptive-viz) |
+| [Programming Exercise 03: Exploratory Visualization](Assignments/ProgrammingExercise03_Exploratory_Vis.md) | Interactive visualization to facilitate understanding of a question for a dataset of your choice. [→ Open in app](https://nickmarcha.github.io/inf252/assignments/exploratory-vis) |
 
 ---
 

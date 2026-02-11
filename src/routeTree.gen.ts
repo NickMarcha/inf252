@@ -11,8 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
+import { Route as AssignmentsExploratoryVisRouteImport } from './routes/assignments/exploratory-vis'
 import { Route as AssignmentsDeceptiveVizRouteImport } from './routes/assignments/deceptive-viz'
+import { Route as AssignmentsExploratoryVisIndexRouteImport } from './routes/assignments/exploratory-vis/index'
 import { Route as AssignmentsDeceptiveVizIndexRouteImport } from './routes/assignments/deceptive-viz/index'
+import { Route as AssignmentsExploratoryVisVisualizationRouteImport } from './routes/assignments/exploratory-vis/visualization'
+import { Route as AssignmentsExploratoryVisDataExplorationRouteImport } from './routes/assignments/exploratory-vis/data-exploration'
 import { Route as AssignmentsDeceptiveVizVisualizationRouteImport } from './routes/assignments/deceptive-viz/visualization'
 import { Route as AssignmentsDeceptiveVizDataExplorationRouteImport } from './routes/assignments/deceptive-viz/data-exploration'
 
@@ -26,16 +30,40 @@ const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
   path: '/demo/tanstack-query',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AssignmentsExploratoryVisRoute =
+  AssignmentsExploratoryVisRouteImport.update({
+    id: '/assignments/exploratory-vis',
+    path: '/assignments/exploratory-vis',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AssignmentsDeceptiveVizRoute = AssignmentsDeceptiveVizRouteImport.update({
   id: '/assignments/deceptive-viz',
   path: '/assignments/deceptive-viz',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AssignmentsExploratoryVisIndexRoute =
+  AssignmentsExploratoryVisIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AssignmentsExploratoryVisRoute,
+  } as any)
 const AssignmentsDeceptiveVizIndexRoute =
   AssignmentsDeceptiveVizIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => AssignmentsDeceptiveVizRoute,
+  } as any)
+const AssignmentsExploratoryVisVisualizationRoute =
+  AssignmentsExploratoryVisVisualizationRouteImport.update({
+    id: '/visualization',
+    path: '/visualization',
+    getParentRoute: () => AssignmentsExploratoryVisRoute,
+  } as any)
+const AssignmentsExploratoryVisDataExplorationRoute =
+  AssignmentsExploratoryVisDataExplorationRouteImport.update({
+    id: '/data-exploration',
+    path: '/data-exploration',
+    getParentRoute: () => AssignmentsExploratoryVisRoute,
   } as any)
 const AssignmentsDeceptiveVizVisualizationRoute =
   AssignmentsDeceptiveVizVisualizationRouteImport.update({
@@ -53,56 +81,79 @@ const AssignmentsDeceptiveVizDataExplorationRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assignments/deceptive-viz': typeof AssignmentsDeceptiveVizRouteWithChildren
+  '/assignments/exploratory-vis': typeof AssignmentsExploratoryVisRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/assignments/deceptive-viz/data-exploration': typeof AssignmentsDeceptiveVizDataExplorationRoute
   '/assignments/deceptive-viz/visualization': typeof AssignmentsDeceptiveVizVisualizationRoute
+  '/assignments/exploratory-vis/data-exploration': typeof AssignmentsExploratoryVisDataExplorationRoute
+  '/assignments/exploratory-vis/visualization': typeof AssignmentsExploratoryVisVisualizationRoute
   '/assignments/deceptive-viz/': typeof AssignmentsDeceptiveVizIndexRoute
+  '/assignments/exploratory-vis/': typeof AssignmentsExploratoryVisIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/assignments/deceptive-viz/data-exploration': typeof AssignmentsDeceptiveVizDataExplorationRoute
   '/assignments/deceptive-viz/visualization': typeof AssignmentsDeceptiveVizVisualizationRoute
+  '/assignments/exploratory-vis/data-exploration': typeof AssignmentsExploratoryVisDataExplorationRoute
+  '/assignments/exploratory-vis/visualization': typeof AssignmentsExploratoryVisVisualizationRoute
   '/assignments/deceptive-viz': typeof AssignmentsDeceptiveVizIndexRoute
+  '/assignments/exploratory-vis': typeof AssignmentsExploratoryVisIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/assignments/deceptive-viz': typeof AssignmentsDeceptiveVizRouteWithChildren
+  '/assignments/exploratory-vis': typeof AssignmentsExploratoryVisRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/assignments/deceptive-viz/data-exploration': typeof AssignmentsDeceptiveVizDataExplorationRoute
   '/assignments/deceptive-viz/visualization': typeof AssignmentsDeceptiveVizVisualizationRoute
+  '/assignments/exploratory-vis/data-exploration': typeof AssignmentsExploratoryVisDataExplorationRoute
+  '/assignments/exploratory-vis/visualization': typeof AssignmentsExploratoryVisVisualizationRoute
   '/assignments/deceptive-viz/': typeof AssignmentsDeceptiveVizIndexRoute
+  '/assignments/exploratory-vis/': typeof AssignmentsExploratoryVisIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/assignments/deceptive-viz'
+    | '/assignments/exploratory-vis'
     | '/demo/tanstack-query'
     | '/assignments/deceptive-viz/data-exploration'
     | '/assignments/deceptive-viz/visualization'
+    | '/assignments/exploratory-vis/data-exploration'
+    | '/assignments/exploratory-vis/visualization'
     | '/assignments/deceptive-viz/'
+    | '/assignments/exploratory-vis/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/demo/tanstack-query'
     | '/assignments/deceptive-viz/data-exploration'
     | '/assignments/deceptive-viz/visualization'
+    | '/assignments/exploratory-vis/data-exploration'
+    | '/assignments/exploratory-vis/visualization'
     | '/assignments/deceptive-viz'
+    | '/assignments/exploratory-vis'
   id:
     | '__root__'
     | '/'
     | '/assignments/deceptive-viz'
+    | '/assignments/exploratory-vis'
     | '/demo/tanstack-query'
     | '/assignments/deceptive-viz/data-exploration'
     | '/assignments/deceptive-viz/visualization'
+    | '/assignments/exploratory-vis/data-exploration'
+    | '/assignments/exploratory-vis/visualization'
     | '/assignments/deceptive-viz/'
+    | '/assignments/exploratory-vis/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssignmentsDeceptiveVizRoute: typeof AssignmentsDeceptiveVizRouteWithChildren
+  AssignmentsExploratoryVisRoute: typeof AssignmentsExploratoryVisRouteWithChildren
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
 }
 
@@ -122,6 +173,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoTanstackQueryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/assignments/exploratory-vis': {
+      id: '/assignments/exploratory-vis'
+      path: '/assignments/exploratory-vis'
+      fullPath: '/assignments/exploratory-vis'
+      preLoaderRoute: typeof AssignmentsExploratoryVisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/assignments/deceptive-viz': {
       id: '/assignments/deceptive-viz'
       path: '/assignments/deceptive-viz'
@@ -129,12 +187,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssignmentsDeceptiveVizRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/assignments/exploratory-vis/': {
+      id: '/assignments/exploratory-vis/'
+      path: '/'
+      fullPath: '/assignments/exploratory-vis/'
+      preLoaderRoute: typeof AssignmentsExploratoryVisIndexRouteImport
+      parentRoute: typeof AssignmentsExploratoryVisRoute
+    }
     '/assignments/deceptive-viz/': {
       id: '/assignments/deceptive-viz/'
       path: '/'
       fullPath: '/assignments/deceptive-viz/'
       preLoaderRoute: typeof AssignmentsDeceptiveVizIndexRouteImport
       parentRoute: typeof AssignmentsDeceptiveVizRoute
+    }
+    '/assignments/exploratory-vis/visualization': {
+      id: '/assignments/exploratory-vis/visualization'
+      path: '/visualization'
+      fullPath: '/assignments/exploratory-vis/visualization'
+      preLoaderRoute: typeof AssignmentsExploratoryVisVisualizationRouteImport
+      parentRoute: typeof AssignmentsExploratoryVisRoute
+    }
+    '/assignments/exploratory-vis/data-exploration': {
+      id: '/assignments/exploratory-vis/data-exploration'
+      path: '/data-exploration'
+      fullPath: '/assignments/exploratory-vis/data-exploration'
+      preLoaderRoute: typeof AssignmentsExploratoryVisDataExplorationRouteImport
+      parentRoute: typeof AssignmentsExploratoryVisRoute
     }
     '/assignments/deceptive-viz/visualization': {
       id: '/assignments/deceptive-viz/visualization'
@@ -173,9 +252,30 @@ const AssignmentsDeceptiveVizRouteWithChildren =
     AssignmentsDeceptiveVizRouteChildren,
   )
 
+interface AssignmentsExploratoryVisRouteChildren {
+  AssignmentsExploratoryVisDataExplorationRoute: typeof AssignmentsExploratoryVisDataExplorationRoute
+  AssignmentsExploratoryVisVisualizationRoute: typeof AssignmentsExploratoryVisVisualizationRoute
+  AssignmentsExploratoryVisIndexRoute: typeof AssignmentsExploratoryVisIndexRoute
+}
+
+const AssignmentsExploratoryVisRouteChildren: AssignmentsExploratoryVisRouteChildren =
+  {
+    AssignmentsExploratoryVisDataExplorationRoute:
+      AssignmentsExploratoryVisDataExplorationRoute,
+    AssignmentsExploratoryVisVisualizationRoute:
+      AssignmentsExploratoryVisVisualizationRoute,
+    AssignmentsExploratoryVisIndexRoute: AssignmentsExploratoryVisIndexRoute,
+  }
+
+const AssignmentsExploratoryVisRouteWithChildren =
+  AssignmentsExploratoryVisRoute._addFileChildren(
+    AssignmentsExploratoryVisRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssignmentsDeceptiveVizRoute: AssignmentsDeceptiveVizRouteWithChildren,
+  AssignmentsExploratoryVisRoute: AssignmentsExploratoryVisRouteWithChildren,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
 }
 export const routeTree = rootRouteImport
